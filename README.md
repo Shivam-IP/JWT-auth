@@ -56,7 +56,10 @@ A secure, modern authentication API built with **FastAPI**, **PostgreSQL** (AWS 
     SECRET_KEY=your_random_64_hex_key
     ```
 
-5. Run the server:Bashuvicorn app.main:app --reload
+5. Run the server: 
+    ``bash u
+    uvicorn app.main:app --reload
+    ```
     
 6. Open docs: http://127.0.0.1:8000/docs
 
