@@ -4,7 +4,7 @@ from app.models.user import Base
 from app.api.v1.auth import router as auth_router 
 
 app = FastAPI(
-    title="FastAPI Authentication App",
+    title="JWT Authentication App",
     description="JWT + PostgreSQL based Authentication API",
     version="0.1.0"
 )
@@ -17,4 +17,4 @@ app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
 
 @app.get("/")
 def root():
-    return {"message": "FastAPI Auth Server is working! 🚀 Use /api/v1/docs for Swagger"}
+    return {"message": "JWT Auth Server is working! 🚀 Use /api/v1/docs for Swagger"}
