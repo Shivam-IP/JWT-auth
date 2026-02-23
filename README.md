@@ -57,7 +57,7 @@ A secure, modern authentication API built with **FastAPI**, **PostgreSQL** (AWS 
     ```
 
 5. Run the server: 
-    ``bash u
+    ```bash 
     uvicorn app.main:app --reload
     ```
     
