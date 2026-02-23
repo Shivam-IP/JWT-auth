@@ -1,4 +1,4 @@
-# FastAPI-authentication App
+# JWT-authentication App
 A secure, modern authentication API built with **FastAPI**, **PostgreSQL** (AWS RDS), **JWT**, and best practices.
 
 ## Features
