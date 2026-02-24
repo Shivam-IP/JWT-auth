@@ -1,33 +1,44 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Form, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.core.database import engine
-from app.models.user import Base
-from app.api.v1.auth import router as auth_router
-from app.core.security import get_current_user, create_access_token, verify_password, get_password_hash
-from app.schemas.user import UserCreate, UserOut
-from sqlalchemy.orm import Session
-from app.core.database import get_db
 from typing import Annotated
 
-# Create tables on startup (development only)
+from sqlalchemy.orm import Session
+from app.core.database import engine, get_db
+from app.models.user import Base, User
+from app.core.security import (
+    get_current_user,
+    create_access_token,
+    verify_password,
+    get_password_hash
+)
+from app.schemas.user import UserOut
+
+# Create tables (development only)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="JWT Auth API",
-    description="JWT + PostgreSQL Authentication with HTML UI",
+    description="JWT + PostgreSQL Authentication",
     version="1.0"
 )
 
-# Jinja2 templates for HTML pages
+# Templates aur Static files
 templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Include API router
+# API Router include (agar alag file mein auth.py hai)
+from app.api.v1.auth import router as auth_router
 app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
 
-# ==================== HTML UI Routes ====================
+# ==================== HTML Pages ====================
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("home.html", {"request": request})
 
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
@@ -37,17 +48,26 @@ async def register_page(request: Request):
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-# ==================== Form Submission Handlers ====================
+@app.get("/me", response_class=HTMLResponse)
+async def me_page(
+    request: Request,
+    current_user: UserOut = Depends(get_current_user)
+):
+    return templates.TemplateResponse(
+        "me.html",
+        {"request": request, "user": current_user}
+    )
+
+# ==================== Form Handlers ====================
 
 @app.post("/register-form")
 async def handle_register_form(
     request: Request,
     username: str = Form(...),
-    email: str = Form(None),
+    email: str | None = Form(None),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    # Check if username exists
     existing_user = db.query(User).filter(User.username == username).first()
     if existing_user:
         return templates.TemplateResponse(
@@ -65,46 +85,28 @@ async def handle_register_form(
     db.commit()
     db.refresh(new_user)
 
-    # Redirect to login after success
     return RedirectResponse(url="/login", status_code=303)
 
 
 @app.post("/login-form")
 async def handle_login_form(
     request: Request,
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    username: str = Form(...),
+    password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not verify_password(password, user.hashed_password):
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "Invalid username or password"}
         )
 
-    # Create token
     access_token = create_access_token(data={"sub": user.username})
-    
-    # Redirect to /me with token in query (simple way, production mein cookie ya header use kar)
     response = RedirectResponse(url=f"/me?token={access_token}", status_code=303)
     return response
 
-# ==================== Protected /me Page ====================
-
-@app.get("/me", response_class=HTMLResponse)
-async def me_page(
-    request: Request,
-    token: str = None,  # From query param after login
-    current_user: UserOut = Depends(get_current_user)
-):
-    if not current_user:
-        return RedirectResponse(url="/login", status_code=303)
-
-    return templates.TemplateResponse(
-        "me.html",
-        {"request": request, "user": current_user}
-    )
-
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+@app.get("/logout", response_class=HTMLResponse)
+async def logout():
+    # JWT stateless hai, client se token delete karna padta hai
+    return HTMLResponse(content="<h2>Logged out! <a href='/login'>Login again</a></h2>")
