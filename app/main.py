@@ -103,6 +103,7 @@ async def handle_login_form(
         )
 
     access_token = create_access_token(data={"sub": user.username})
+    
     response = RedirectResponse(url=f"/me?token={access_token}", status_code=303)
     return response
 
